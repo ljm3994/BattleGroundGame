@@ -21,9 +21,6 @@ void ABattleGroundPlayerController::BeginPlay()
 
 	InventoryUIInit();
 	MainUIInit();
-
-	
-
 }
 ABattleGroundPlayerController::ABattleGroundPlayerController()
 	:Super()

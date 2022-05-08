@@ -21,6 +21,8 @@ public:
 	TSubclassOf<class UUserWidget> m_InteractiveWidgetClass;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Widget")
 	class UWidgetComponent* m_InteractiveWidget;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Default")
+	bool bisCollision;
 	// Sets default values for this actor's properties
 	ABaseItem(const FObjectInitializer& ObjectInitializer);
 

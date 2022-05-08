@@ -58,6 +58,7 @@ ABattleGroundPlayer::ABattleGroundPlayer()
 	m_bisRifle = false;
 	bisInit = false;
 	m_TimeLineUpdateEvent.BindUFunction(this, TEXT("CameraVerticalTLEvent"));
+	m_TimeLineAimingUpdateEvent.BindUFunction(this, TEXT("AimingVerticalTLEvent"));
 
 	m_iPlayerHP = 100;
 	m_iHeadPlayerDefece = 0.0f;
@@ -67,6 +68,7 @@ ABattleGroundPlayer::ABattleGroundPlayer()
 	m_FPSocketName = "FP_Camera";
 
 	m_TimeVertical = CreateDefaultSubobject<UTimelineComponent>(TEXT("VerticalTL"));
+	m_TimeAimingVertical = CreateDefaultSubobject<UTimelineComponent>(TEXT("VerticalAiming"));
 }
 
 // Called when the game starts or when spawned
@@ -74,6 +76,7 @@ void ABattleGroundPlayer::BeginPlay()
 {
 	Super::BeginPlay();
 
+	m_bisDoubleLB = false;
 	m_Arm->TargetArmLength = 300.f;
 	m_Arm->SetRelativeRotation(FRotator(-45, 0, 0));
 	m_TPCamera->SetRelativeRotation(FRotator(0, 0, 0));
@@ -93,9 +96,12 @@ void ABattleGroundPlayer::BeginPlay()
 	GetCapsuleComponent()->SetGenerateOverlapEvents(true);
 	GetCapsuleComponent()->OnComponentBeginOverlap.__Internal_AddDynamic(this, &ABattleGroundPlayer::OnItemCollisionBeginOverlap, TEXT("OnItemCollisionBeginOverlap"));
 	GetCapsuleComponent()->OnComponentEndOverlap.__Internal_AddDynamic(this, &ABattleGroundPlayer::OnItemCollisionEndOverlap, TEXT("OnItemCollisionEndOverlap"));
-
+	m_iDoubleClick = 0;
+	GetWorldTimerManager().ClearTimer(m_DoubleClickHandle);
 	if(m_CurveVertical != nullptr)
 	    m_TimeVertical->AddInterpFloat(m_CurveVertical, m_TimeLineUpdateEvent);
+	if (m_TLAimingCurve != nullptr)
+		m_TimeAimingVertical->AddInterpFloat(m_TLAimingCurve, m_TimeLineAimingUpdateEvent);
 }
 
 void ABattleGroundPlayer::EquipmentSlotInit()
@@ -114,6 +120,51 @@ void ABattleGroundPlayer::EquipmentSlotInit()
 void ABattleGroundPlayer::SetTimerInit()
 {
 
+}
+void ABattleGroundPlayer::SelectSlotEquipment(EquipmentSlotCategory slot, FItemData& itemData)
+{
+	int Index = -1;
+	if (GetIsEquipment(slot, Index))
+	{
+		if (Index != -1)
+		{
+			ABaseWeapone* weapon = nullptr;
+			DropItem(m_ArrayEquipment[Index].m_Item->m_ItemInfo, weapon);
+		}
+	}
+	
+	if (Index != -1)
+	{
+		m_ArrayEquipment[Index].m_ItemName = itemData.m_ItemName;
+		m_ArrayEquipment[Index].m_Item = itemData.m_ItemClass;
+		itemData.m_ItemClass->bisCollision = false;
+		Cast<ABattleGroundPlayerController>(Controller)->GetInventoryWidget()->BuildEquipmentWeapon(slot);
+
+		if (m_CurrentEquipmentSlot == m_ArrayEquipment[Index].m_SlotCategory)
+			m_bisRifle = true;
+
+		UpdateGunAttachMent();
+	}
+}
+void ABattleGroundPlayer::AimingVerticalTLEvent(float fAlpha)
+{
+	GetCamer()->SetFieldOfView(fAlpha);
+}
+int ABattleGroundPlayer::GetIsEquipmentSlot(ABaseItem* item)
+{
+	int ReturnIndex = -1;
+	int i = 0;
+	for (auto& data : m_ArrayEquipment)
+	{
+		if (data.m_Item == item)
+		{
+			ReturnIndex = i;
+			break;
+		}
+
+		i++;
+	}
+	return ReturnIndex;
 }
 float ABattleGroundPlayer::CurrentInventoryWeight()
 {
@@ -148,6 +199,7 @@ void ABattleGroundPlayer::OnItemCollisionEndOverlap(UPrimitiveComponent* Overlap
 		item->OnInteractiveExited();
 	}
 }
+
 // Called every frame
 void ABattleGroundPlayer::Tick(float DeltaTime)
 {
@@ -176,6 +228,10 @@ void ABattleGroundPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInput
 	PlayerInputComponent->BindAction("Crouch", EInputEvent::IE_Pressed, this, &ABattleGroundPlayer::StartCrouch);
 	PlayerInputComponent->BindAction("Carmera", EInputEvent::IE_Pressed, this, &ABattleGroundPlayer::CameraChange);
 	PlayerInputComponent->BindAction("Interact", EInputEvent::IE_Pressed, this, &ABattleGroundPlayer::Interact);
+	PlayerInputComponent->BindAction("Aiming", EInputEvent::IE_Pressed, this, &ABattleGroundPlayer::AimingPress);
+	PlayerInputComponent->BindAction("Aiming", EInputEvent::IE_Released, this, &ABattleGroundPlayer::AimingUnPress);
+	PlayerInputComponent->BindAction("Fire", EInputEvent::IE_Pressed, this, &ABattleGroundPlayer::FirePress);
+	PlayerInputComponent->BindAction("Fire", EInputEvent::IE_Released, this, &ABattleGroundPlayer::FireUnPress);
 }
 
 FVector ABattleGroundPlayer::GetFPCameraTarget_Implementation()
@@ -327,6 +383,16 @@ bool ABattleGroundPlayer::ItemToInventory(ABaseItem* item)
 			m_ArrayInventory.Emplace(item->m_ItemInfo);
 		}
 
+		int Index = GetIsEquipmentSlot(item);
+
+		if (Index != -1)
+		{
+			m_ArrayEquipment[Index].m_Item = nullptr;
+		}
+
+		item->m_ItemInfo.m_ItemClass->SetActorHiddenInGame(true);
+		item->m_ItemInfo.m_ItemClass->SetActorEnableCollision(false);
+		item->m_ItemInfo.m_ItemClass->bisCollision = false;
 		bisSucc = true;
 	}
 	return bisSucc;
@@ -344,7 +410,6 @@ void ABattleGroundPlayer::PickUpWeapon(ABaseWeapone* weapon)
 			if (gun)
 			{
 				DropItem(m_ArrayEquipment[Index].m_Item->m_ItemInfo, gun);
-				m_ArrayEquipment[Index].m_Item->Destroy();
 				PickUpWeapon(weapon);
 				return;
 			}
@@ -582,7 +647,7 @@ bool ABattleGroundPlayer::GetIsEquipment(EquipmentSlotCategory slot, int& iIndex
 	return false;
 }
 
-void ABattleGroundPlayer::DropItem(FItemData info, ABaseWeapone* weapon)
+void ABattleGroundPlayer::DropItem(FItemData info, ABaseWeapone* weapon, bool bisStack, int iStackCnt)
 {
 	FVector TraceLocation;
 	UCameraComponent* cam = GetCamer();
@@ -599,15 +664,70 @@ void ABattleGroundPlayer::DropItem(FItemData info, ABaseWeapone* weapon)
 	CheckForGround(ResultVec, TraceLocation);          //땅위에 출력해야 하기 떄문에 충돌 지점을 검사한다.
 	FTransform transform = FTransform::Identity;
 	transform.SetLocation(TraceLocation);                       //스폰위치를 지정한다....
-	ABaseItem* item = GetWorld()->SpawnActor<ABaseItem>(info.m_ItemClass->StaticClass(), transform);
 
-	memcpy(&item->m_ItemInfo, &info, sizeof(FItemData));
-	if (info.m_Category == EItemCategory::Item_Weapon)
+	if (!bisStack)
 	{
-		weapon = Cast<ABaseWeapone>(item);
+		info.m_ItemClass->SetActorLocation(TraceLocation, false, nullptr, ETeleportType::TeleportPhysics);
+		info.m_ItemClass->SetActorEnableCollision(true);
+		info.m_ItemClass->SetActorHiddenInGame(false);
+		info.m_ItemClass->bisCollision = true;
+		if (info.m_Category == EItemCategory::Item_Weapon)
+		{
+			weapon = Cast<ABaseWeapone>(info.m_ItemClass);
+		}
+		
+	}
+	else
+	{
+		ABaseItem* item = GetWorld()->SpawnActor<ABaseItem>(info.m_ItemClass->GetClass(), transform);
+		item->SetActorEnableCollision(true);
+		item->SetActorHiddenInGame(false);
+		item->m_ItemInfo.m_iItemAmount = iStackCnt;
+		item->bisCollision = true;
+	}
+	
+}
+
+void ABattleGroundPlayer::AimingPress()
+{
+	m_iDoubleClick++;
+
+	if (!GetWorldTimerManager().IsTimerActive(m_DoubleClickHandle))
+	{
+		GetWorldTimerManager().SetTimer(m_DoubleClickHandle, FTimerDelegate::CreateLambda([&]() {
+
+				if (m_iDoubleClick >= 2)
+				{
+					m_bisDoubleLB = true;
+				}
+				else
+				{
+					if (m_bisRifle)
+					{
+						m_bisAmining = true;
+						m_TimeAimingVertical->Play();
+					}
+				}
+
+				m_iDoubleClick = 0;
+			}
+		), 0.25f, false);
 	}
 }
 
+
+void ABattleGroundPlayer::AimingUnPress()
+{
+	if (m_bisDoubleLB)
+	{
+		m_bisDoubleLB = false;
+	}
+	else
+	{
+		m_bisAmining = false;
+		m_TimeAimingVertical->Reverse();
+	}
+}
 
 UCameraComponent* ABattleGroundPlayer::GetCamer()
 {
@@ -773,7 +893,7 @@ void ABattleGroundPlayer::GroundItemAdd()
 		{
 			ABaseItem* item = Cast<ABaseItem>(var.Actor);
 
-			if (item != nullptr && IsValid(item))
+			if (item != nullptr && IsValid(item) && item->bisCollision)
 			{
 				m_ArrGroundItem.Add(item);
 			}

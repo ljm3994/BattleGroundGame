@@ -22,8 +22,10 @@ public:
 		class UTextBlock* m_BulletCountNum;
 
 	EquipmentSlotCategory m_Category;
+
 	UWeaponEquipmentWidget(const FObjectInitializer& ObjectInitializer);
 	virtual void NativeConstruct() override;
 	virtual FReply NativeOnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	virtual bool NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
 	void BuildWeapon();
 };

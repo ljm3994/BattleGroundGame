@@ -19,6 +19,7 @@ private:
 	bool m_bisCanEnterCar;
 	class APawn* m_MainCar;
 	class ACharacter* m_MainPlayer;
+	
 	FTimerHandle m_TimerHandle;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Class", meta = (AllowPrivateAccess = "true"))
 		TSubclassOf<class UInventoryWidget> m_InventroyClass;

@@ -15,8 +15,9 @@ ABaseItem::ABaseItem(const FObjectInitializer& ObjectInitializer)
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 	m_bisinitdata = true;
-
+	m_ItemInfo.m_ItemClass = this;
 	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("RootComponent"));
+	bisCollision = true;
 }
 
 // Called when the game starts or when spawned

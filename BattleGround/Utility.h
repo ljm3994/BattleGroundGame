@@ -81,4 +81,3 @@ FORCEINLINE FFlipFlop::FFlipFlop() : m_bisFilpFlop(false)
 
 FORCEINLINE FFlipFlop::FFlipFlop(bool bisStartClosed) : m_bisFilpFlop(!bisStartClosed)
 {}
-

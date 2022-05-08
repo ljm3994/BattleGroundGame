@@ -86,10 +86,19 @@ private:
 		float m_fThirdFov;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera", meta = (AllowPrivateAccess = "true"))
 		FName m_FPSocketName;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Time", meta = (AllowPrivateAccess = "true"))
+		UCurveFloat* m_TLAimingCurve;
+
 	class UTimelineComponent* m_TimeVertical;
+	class UTimelineComponent* m_TimeAimingVertical;
+
 	FOnTimelineFloat m_TimeLineUpdateEvent;
+	FOnTimelineFloat m_TimeLineAimingUpdateEvent;
 	FMinMaxValue m_MaxMinVertical;
 	bool bisInit;
+	int m_iDoubleClick;
+	FTimerHandle m_DoubleClickHandle;
+	bool m_bisDoubleLB;
 public:
 	bool m_bIsIncir;
 	// Sets default values for this character's properties
@@ -256,8 +265,18 @@ public:
 		/// </summary>
 		/// <param name="info">아이템 정보</param>
 		/// <param name="weapon">떨굴 아이템</param>
-		void DropItem(FItemData info, ABaseWeapone* weapon);
+		void DropItem(FItemData info, ABaseWeapone* weapon, bool bisStack = false, int iStackCnt = 0);
 
+	UFUNCTION(BlueprintCallable, Category = "Action")
+		/// <summary>
+		/// 에임 버튼 누르기
+		/// </summary>
+		void AimingPress();
+	UFUNCTION(BlueprintCallable, Category = "Action")
+		/// <summary>
+		/// 에임 버튼 비활성화 누르기
+		/// </summary>
+		void AimingUnPress();
 	UFUNCTION(BlueprintCallable, Category = "Camera")
 		UCameraComponent* GetCamer();
 	UFUNCTION(BlueprintCallable, Category = "Camera")
@@ -286,7 +305,12 @@ public:
 		void EquipmentSlotInit();
 	UFUNCTION(BlueprintCallable, Category = "Init")
 		void SetTimerInit();
+	UFUNCTION(BlueprintCallable, Category = "Equipment")
+		void SelectSlotEquipment(EquipmentSlotCategory slot, FItemData& itemData);
+	UFUNCTION()
+		void AimingVerticalTLEvent(float fAlpha);
 
+	int GetIsEquipmentSlot(class ABaseItem* item);
 	float CurrentInventoryWeight();
 	bool IsHasItem(FItemData* data);
 	UFUNCTION()

@@ -6,6 +6,8 @@
 #include "BaseWeapone.h"
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
+#include "BattleGroundPlayerController.h"
+#include "InventoryWidget.h"
 
 UWeaponEquipmentWidget::UWeaponEquipmentWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -28,6 +30,49 @@ FReply UWeaponEquipmentWidget::NativeOnMouseButtonUp(const FGeometry& MyGeometry
 		}
 	}
 	return Super::NativeOnMouseButtonUp(MyGeometry, MouseEvent);
+}
+bool UWeaponEquipmentWidget::NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
+{
+	UDragItemOperation* DragItem = Cast< UDragItemOperation>(InOperation);
+
+	if (DragItem != nullptr)
+	{
+		USlotBaseWidget* widget = Cast< USlotBaseWidget>(DragItem->ItemData);
+
+		if (widget != nullptr)
+		{
+			switch (widget->SlotType)
+			{
+			case ESlotCategory::SLOT_GROUNDITEM:
+			{
+				m_Player->SelectSlotEquipment(m_Category, widget->ItemRef->m_ItemInfo);
+				BuildWeapon();
+				m_Player->GroundItemAdd();
+				m_PlayerController->GetInventoryWidget()->BuildGroundItem();
+			}
+			break;
+			case ESlotCategory::SLOT_INVENITEM:
+			{
+				int Index = -1;
+				bool bisInven = false;
+				m_Player->SelectSlotEquipment(m_Category, widget->ItemRef->m_ItemInfo);
+				m_Player->GetInvenItem(widget->ItemRef->m_ItemInfo.m_ItemName, Index, bisInven);
+				if (bisInven)
+				{
+					m_Player->RemoveInven(Index);
+				}
+				BuildWeapon();
+				m_PlayerController->GetInventoryWidget()->BuildInventory();
+			}
+			break;
+			default:
+				return false;
+			}
+
+			return true;
+		}
+	}
+	return false;
 }
 void UWeaponEquipmentWidget::BuildWeapon()
 {

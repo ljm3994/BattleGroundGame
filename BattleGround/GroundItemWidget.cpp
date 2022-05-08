@@ -49,7 +49,6 @@ bool UGroundItemWidget::NativeOnDrop(const FGeometry& InGeometry, const FDragDro
             case ESlotCategory::SLOT_EQUIPMENTWEAPON:
             {
                 m_Player->DropItem(DragItem->ItemData->m_Data, nullptr);
-
                 BuildGround();
                 m_Player->GroundItemAdd();
                 UWeaponEquipmentWidget* EquipmentWidget = Cast< UWeaponEquipmentWidget>(DragItem->ItemData);
